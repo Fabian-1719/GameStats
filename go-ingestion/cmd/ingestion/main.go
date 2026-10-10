@@ -2,12 +2,16 @@
 //
 // Configuración por variables de entorno:
 //
-//	PORT           puerto HTTP (por defecto 8080)
-//	CATALOG_PATH   catálogo de eventos (por defecto config/catalog.json)
-//	REJECTED_PATH  archivo de rechazados (por defecto rejected.ndjson)
-//	IDLE_TIMEOUT   sin eventos durante este tiempo, la partida se envía (30s)
-//	FINISH_GRACE   espera tras MATCH_FINISHED por eventos que llegan tarde (2s)
-//	BATCH_DIR      si se define, guarda cada lote como <gameId>_<matchId>.json
+//	PORT             puerto HTTP (por defecto 8080)
+//	CATALOG_PATH     catálogo de eventos (por defecto config/catalog.json)
+//	REJECTED_PATH    archivo de rechazados (por defecto rejected.ndjson)
+//	IDLE_TIMEOUT     sin eventos durante este tiempo, la partida se envía (30s)
+//	FINISH_GRACE     espera tras MATCH_FINISHED por eventos que llegan tarde (2s)
+//	BATCH_DIR        si se define, guarda cada lote como <gameId>_<matchId>.json (diagnóstico)
+//	SCALA_URL        URL base de Scala (ejemplo: http://localhost:8081)
+//	SENDER_WORKERS   número de workers para enviar a Scala (por defecto 4)
+//	SENDER_TIMEOUT   timeout por envío HTTP a Scala (por defecto 5s)
+//	FAILED_BATCH_DIR directorio donde guardar lotes que fallen definitivamente (failed-batches)
 //
 // Uso:
 //
@@ -26,6 +30,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -34,6 +39,7 @@ import (
 	"gamestats/go-ingestion/internal/match"
 	"gamestats/go-ingestion/internal/model"
 	"gamestats/go-ingestion/internal/router"
+	"gamestats/go-ingestion/internal/sender"
 	"gamestats/go-ingestion/internal/validator"
 )
 
@@ -42,6 +48,18 @@ func env(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func envInt(key string, fallback int) int {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n <= 0 {
+		log.Fatalf("%s=%q no es un entero positivo válido", key, v)
+	}
+	return n
 }
 
 func envDuration(key string, fallback time.Duration) time.Duration {
@@ -54,26 +72,6 @@ func envDuration(key string, fallback time.Duration) time.Duration {
 		log.Fatalf("%s=%q no es una duración válida (ejemplo: 30s)", key, v)
 	}
 	return d
-}
-
-// consumeBatches lee los lotes listos hasta que el router cierra el channel.
-// Día 2: los registra (y opcionalmente los guarda en BATCH_DIR). Día 3: aquí se
-// reemplaza por el worker pool que los envía a Scala.
-func consumeBatches(batches <-chan model.Batch, dir string, byStatus map[string]int) {
-	for b := range batches {
-		byStatus[b.Status]++
-		log.Printf("lote listo: partida=%s juego=%s estado=%s eventos=%d", b.MatchID, b.GameID, b.Status, len(b.Events))
-		if dir == "" {
-			continue
-		}
-		data, err := json.MarshalIndent(b, "", "  ")
-		if err == nil {
-			err = os.WriteFile(filepath.Join(dir, b.GameID+"_"+b.MatchID+".json"), data, 0o644)
-		}
-		if err != nil {
-			log.Printf("no se pudo guardar el lote %s: %v", b.MatchID, err)
-		}
-	}
 }
 
 func main() {
@@ -114,9 +112,39 @@ func main() {
 	routerDone := make(chan struct{})
 	go func() { rt.Run(routerCtx); close(routerDone) }()
 
+	// Worker pool del sender hacia Scala (Día 3)
+	senderPool := sender.New(sender.Config{
+		ScalaURL:       env("SCALA_URL", ""),
+		Workers:        envInt("SENDER_WORKERS", 4),
+		Timeout:        envDuration("SENDER_TIMEOUT", 5*time.Second),
+		FailedBatchDir: env("FAILED_BATCH_DIR", "failed-batches"),
+	})
+
+	// Canal puente: permite guardar copia opcional en BATCH_DIR y llevar contadores
+	senderBatches := make(chan model.Batch, 16)
 	byStatus := map[string]int{}
-	consumerDone := make(chan struct{})
-	go func() { consumeBatches(rt.Batches(), batchDir, byStatus); close(consumerDone) }()
+	bridgeDone := make(chan struct{})
+
+	go func() {
+		defer close(bridgeDone)
+		defer close(senderBatches)
+		for b := range rt.Batches() {
+			byStatus[b.Status]++
+			if batchDir != "" {
+				data, err := json.MarshalIndent(b, "", "  ")
+				if err == nil {
+					_ = os.WriteFile(filepath.Join(batchDir, b.GameID+"_"+b.MatchID+".json"), data, 0o644)
+				}
+			}
+			senderBatches <- b
+		}
+	}()
+
+	senderDone := make(chan struct{})
+	go func() {
+		senderPool.Run(context.Background(), senderBatches)
+		close(senderDone)
+	}()
 
 	// Cada evento válido pasa por el router, que lo reparte a la goroutine de su partida.
 	sink := func(ev model.Event) {
@@ -126,11 +154,12 @@ func main() {
 	}
 
 	// shutdown detiene el router (las partidas en curso envían lo que tienen) y
-	// espera a que todos los lotes se hayan consumido.
+	// espera a que todos los lotes hayan sido despachados por el sender pool.
 	shutdown := func() {
 		stopRouter()
 		<-routerDone
-		<-consumerDone
+		<-bridgeDone
+		<-senderDone
 	}
 
 	proc := ingest.NewProcessor(validator.New(catalog), rejected, sink)
@@ -146,8 +175,9 @@ func main() {
 			log.Fatalf("leyendo archivo: %v", err)
 		}
 		shutdown()
-		fmt.Printf("total=%d aceptados=%d rechazados=%d | partidas=%d lotes=%v tardíos=%d\n",
-			st.Total, st.Accepted, st.Rejected, rt.Stats().Matches, byStatus, rt.Stats().Late)
+		sStats := senderPool.Stats()
+		fmt.Printf("total=%d aceptados=%d rechazados=%d | partidas=%d lotes=%v enviados=%d fallidos=%d tardíos=%d\n",
+			st.Total, st.Accepted, st.Rejected, rt.Stats().Matches, byStatus, sStats.Sent, sStats.Failed, rt.Stats().Late)
 		return
 	}
 
@@ -161,7 +191,7 @@ func main() {
 	defer stop()
 
 	go func() {
-		log.Printf("ingestión escuchando en %s", srv.Addr)
+		log.Printf("ingestión escuchando en %s (Scala URL: %q)", srv.Addr, env("SCALA_URL", "<disco local>"))
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatal(err)
 		}
@@ -172,10 +202,11 @@ func main() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Printf("error al apagar: %v", err)
+		log.Printf("error al apagar servidor HTTP: %v", err)
 	}
-	shutdown() // el servidor HTTP ya no acepta eventos: ahora se envía lo que quedaba en curso
+	shutdown() // el servidor HTTP ya no acepta eventos: ahora se procesa y envía lo que quedaba en curso
 	st := proc.Stats()
-	log.Printf("final: total=%d aceptados=%d rechazados=%d partidas=%d lotes=%v tardíos=%d",
-		st.Total, st.Accepted, st.Rejected, rt.Stats().Matches, byStatus, rt.Stats().Late)
+	sStats := senderPool.Stats()
+	log.Printf("final: total=%d aceptados=%d rechazados=%d partidas=%d lotes=%v enviados=%d fallidos=%d tardíos=%d",
+		st.Total, st.Accepted, st.Rejected, rt.Stats().Matches, byStatus, sStats.Sent, sStats.Failed, rt.Stats().Late)
 }
