@@ -1,7 +1,6 @@
 # GameStats — Especificación de eventos y contrato entre módulos
 
-> Estado: **borrador de la sesión 0**. Cuando Fabián y Cristofer lo aprueben, se congela;
-> cualquier cambio posterior se hace por pull request revisado por ambos.
+> Estado: **Congelado para traspaso (Día 3)**. Base estable para la implementación de Scala por Cristofer.
 
 ## 1. Juegos considerados
 
@@ -159,8 +158,11 @@ separadas (la clave es `gameId + matchId`).
 |---|---|---|
 | `PORT` | `8080` | Puerto HTTP |
 | `CATALOG_PATH` | `config/catalog.json` | Catálogo de eventos |
-| `REJECTED_PATH` | `rejected.ndjson` | Archivo de rechazados |
+| `REJECTED_PATH` | `rejected.ndjson` | Archivo de rechazados (DLQ) |
 | `IDLE_TIMEOUT` | `30s` | Sin eventos durante este tiempo, la partida se envía como `TIMEOUT` |
 | `FINISH_GRACE` | `2s` | Espera tras `MATCH_FINISHED` por eventos que llegan tarde |
-| `BATCH_DIR` | — | Si se define, guarda cada lote como `<gameId>_<matchId>.json` (depuración) |
-| `SCALA_URL` | — | Base URL de Scala (se agrega el Día 3) |
+| `BATCH_DIR` | — | Si se define, guarda cada lote como `<gameId>_<matchId>.json` (depuración local) |
+| `SCALA_URL` | — | Base URL de Scala (ejemplo: `http://localhost:8081`) |
+| `SENDER_WORKERS` | `4` | Número de goroutines del pool de envío a Scala |
+| `SENDER_TIMEOUT` | `5s` | Timeout por petición HTTP hacia Scala |
+| `FAILED_BATCH_DIR` | `failed-batches` | Directorio para resguardar lotes que fallen tras reintentos |
