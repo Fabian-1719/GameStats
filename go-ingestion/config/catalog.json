@@ -1,0 +1,23 @@
+{
+  "_common": {
+    "MATCH_STARTED":       { "requiresPlayer": false },
+    "PLAYER_JOINED":       { "requiresPlayer": true },
+    "PLAYER_LEFT":         { "requiresPlayer": true },
+    "PLAYER_DISCONNECTED": { "requiresPlayer": true },
+    "PLAYER_RECONNECTED":  { "requiresPlayer": true },
+    "MATCH_FINISHED":      { "requiresPlayer": false }
+  },
+  "combat-arena": {
+    "SHOT_FIRED":        { "requiresPlayer": true,  "required": ["weapon"] },
+    "SHOT_HIT":          { "requiresPlayer": true,  "required": ["targetId", "damage"] },
+    "PLAYER_ELIMINATED": { "requiresPlayer": true,  "required": ["targetId", "weapon"] },
+    "MATCH_FINISHED":    { "requiresPlayer": false, "required": ["winnerId", "scores"] }
+  },
+  "racing-circuit": {
+    "MATCH_STARTED":    { "requiresPlayer": false, "required": ["track", "laps"] },
+    "LAP_COMPLETED":    { "requiresPlayer": true,  "required": ["lap", "lapTimeMs", "position"] },
+    "POSITION_CHANGED": { "requiresPlayer": true,  "required": ["from", "to"] },
+    "PENALTY":          { "requiresPlayer": true,  "required": ["reason", "seconds"] },
+    "MATCH_FINISHED":   { "requiresPlayer": false, "required": ["classification"] }
+  }
+}
