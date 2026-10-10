@@ -1,0 +1,12 @@
+{"eventId":"e-001","timestamp":"2026-10-10T15:00:00Z","gameId":"combat-arena","gameVersion":"1.0","matchId":"m-0001","type":"MATCH_STARTED"}
+{"eventId":"e-002","timestamp":"2026-10-10T15:00:01Z","gameId":"combat-arena","gameVersion":"1.0","matchId":"m-0001","playerId":"p-01","type":"PLAYER_JOINED"}
+{"eventId":"e-003","timestamp":"2026-10-10T15:00:05.120Z","gameId":"combat-arena","gameVersion":"1.0","matchId":"m-0001","playerId":"p-01","type":"SHOT_FIRED","action":"RIFLE","data":{"weapon":"RIFLE"}}
+{"eventId":"e-004","timestamp":"2026-10-10T15:00:05.300Z","gameId":"combat-arena","gameVersion":"1.0","matchId":"m-0001","playerId":"p-01","type":"SHOT_HIT","action":"RIFLE","data":{"targetId":"p-02","damage":27,"headshot":false}}
+{"eventId":"e-005","timestamp":"2026-10-10T15:00:09Z","gameId":"combat-arena","gameVersion":"1.0","matchId":"m-0001","playerId":"p-01","type":"PLAYER_ELIMINATED","data":{"targetId":"p-02","weapon":"RIFLE","distance":42}}
+{"eventId":"e-006","timestamp":"2026-10-10T15:00:10Z","gameId":"racing-circuit","gameVersion":"1.0","matchId":"m-0002","type":"MATCH_STARTED","data":{"track":"Monza","laps":3}}
+{"eventId":"e-007","timestamp":"2026-10-10T15:01:40Z","gameId":"racing-circuit","gameVersion":"1.0","matchId":"m-0002","playerId":"p-05","type":"LAP_COMPLETED","data":{"lap":1,"lapTimeMs":88123,"position":2}}
+{"eventId":"e-008","timestamp":"2026-10-10T15:00:11Z","gameId":"combat-arena","gameVersion":"1.0","matchId":"m-0001","playerId":"p-01","type":"SHOT_HIT","data":{"targetId":"p-02"}}
+{"eventId":"e-009","timestamp":"ayer","gameId":"combat-arena","gameVersion":"1.0","matchId":"m-0001","type":"MATCH_FINISHED","data":{"winnerId":"p-01","scores":{}}}
+{"eventId":"e-010","timestamp":"2026-10-10T15:00:12Z","gameId":"tetris","gameVersion":"1.0","matchId":"m-0003","type":"MATCH_STARTED"}
+{"eventId":"e-011","timestamp":"2026-10-10T15:00:13Z","gameId":"racing-circuit","gameVersion":"1.0","matchId":"m-0002","type":"LAP_COMPLETED","data":{"lap":2,"lapTimeMs":87000,"position":1}}
+esto no es json
