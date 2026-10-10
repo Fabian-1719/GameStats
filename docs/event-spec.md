@@ -124,8 +124,24 @@ Alternativa por archivo: `ingestion -file datos.ndjson` (un evento por línea).
 Go entrega **un lote por partida**, con los eventos ya sin duplicados y ordenados por `timestamp`:
 
 ```json
-{ "matchId": "m-0042", "gameId": "combat-arena", "events": [ { "...": "..." } ] }
+{ "matchId": "m-0042", "gameId": "combat-arena", "status": "COMPLETE", "events": [ { "...": "..." } ] }
 ```
+
+`status` le dice a Scala si la partida está completa:
+
+| status | Significado |
+|---|---|
+| `COMPLETE` | Se vio `MATCH_FINISHED`. |
+| `TIMEOUT` | La partida dejó de recibir eventos (`IDLE_TIMEOUT`) sin llegar a `MATCH_FINISHED`. |
+| `SHUTDOWN` | El servicio se apagó con la partida todavía en curso. |
+
+Scala debe tratar `TIMEOUT` y `SHUTDOWN` como partidas incompletas (por ejemplo, no declarar ganador ni remontada).
+
+**Cuándo se envía un lote:** `FINISH_GRACE` (2 s por defecto) después de `MATCH_FINISHED`, porque
+eventos anteriores pueden llegar tarde por el desorden; o `IDLE_TIMEOUT` (30 s) sin eventos; o al apagar.
+**Una partida se envía una sola vez.** Un evento que llega después va a `rejected.ndjson` con el
+motivo `LATE_EVENT`. Dos juegos distintos pueden repetir un `matchId`: Go los trata como partidas
+separadas (la clave es `gameId + matchId`).
 
 | Método | Ruta | Función |
 |---|---|---|
@@ -144,4 +160,7 @@ Go entrega **un lote por partida**, con los eventos ya sin duplicados y ordenado
 | `PORT` | `8080` | Puerto HTTP |
 | `CATALOG_PATH` | `config/catalog.json` | Catálogo de eventos |
 | `REJECTED_PATH` | `rejected.ndjson` | Archivo de rechazados |
+| `IDLE_TIMEOUT` | `30s` | Sin eventos durante este tiempo, la partida se envía como `TIMEOUT` |
+| `FINISH_GRACE` | `2s` | Espera tras `MATCH_FINISHED` por eventos que llegan tarde |
+| `BATCH_DIR` | — | Si se define, guarda cada lote como `<gameId>_<matchId>.json` (depuración) |
 | `SCALA_URL` | — | Base URL de Scala (se agrega el Día 3) |

@@ -10,7 +10,7 @@ Simulador -> [Go: ingestion] -> lote por partida -> [Scala: analisis] -> resulta
 
 | Carpeta | Contenido | Estado |
 |---|---|---|
-| `go-ingestion/` | Validacion, entrada de eventos, DLQ | Dia 1 listo |
+| `go-ingestion/` | Validacion, entrada, DLQ, router y estado por partida | Dias 1 y 2 listos |
 | `scala-analytics/` | Estadisticas y patrones | Pendiente (Cristofer) |
 | `simulator/` | Generador de eventos | Pendiente (Dia 3) |
 | `docs/` | Especificacion y documentacion | `event-spec.md` listo |
@@ -26,6 +26,7 @@ cd go-ingestion
 go test -race ./...              # pruebas
 go run ./cmd/ingestion           # servidor en :8080
 go run ./cmd/ingestion -file ../docs/sample-data/smoke.ndjson   # carga un archivo
+BATCH_DIR=/tmp/lotes go run ./cmd/ingestion -file ../docs/sample-data/smoke.ndjson   # y guarda los lotes
 ```
 
 Probar el servidor:
