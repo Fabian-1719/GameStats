@@ -21,3 +21,22 @@ type Event struct {
 func (e Event) Time() (time.Time, error) {
 	return time.Parse(time.RFC3339Nano, e.Timestamp)
 }
+
+// Estados con los que Go entrega un lote a Scala.
+const (
+	// StatusComplete: se vio MATCH_FINISHED; la partida terminó con normalidad.
+	StatusComplete = "COMPLETE"
+	// StatusTimeout: la partida dejó de recibir eventos sin llegar a MATCH_FINISHED.
+	StatusTimeout = "TIMEOUT"
+	// StatusShutdown: el servicio se apagó con la partida todavía en curso.
+	StatusShutdown = "SHUTDOWN"
+)
+
+// Batch es el lote de una partida que Go entrega a Scala: eventos sin
+// duplicados y ordenados por timestamp.
+type Batch struct {
+	MatchID string  `json:"matchId"`
+	GameID  string  `json:"gameId"`
+	Status  string  `json:"status"`
+	Events  []Event `json:"events"`
+}
