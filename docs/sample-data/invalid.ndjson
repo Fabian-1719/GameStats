@@ -1,0 +1,35 @@
+esto no es un objeto json valido {{{
+{"eventId":"e-000001","timestamp":"2026-10-10T15:01:00Z","gameId":"combat-arena","gameVersion":"1.0","matchId":"","type":"MATCH_STARTED"}
+{"eventId":"e-000002","timestamp":"2026-99-99 88:88:88","gameId":"combat-arena","gameVersion":"1.0","matchId":"m-err-0001","type":"MATCH_STARTED"}
+{"eventId":"e-000003","timestamp":"2026-10-10T15:01:00Z","gameId":"super-mario-galaxy","gameVersion":"1.0","matchId":"m-err-0001","type":"MATCH_STARTED"}
+{"eventId":"e-000004","timestamp":"2026-10-10T15:01:00Z","gameId":"combat-arena","gameVersion":"1.0","matchId":"m-err-0001","type":"CAST_SPELL_TELEPORT"}
+{"eventId":"e-000005","timestamp":"2026-10-10T15:01:00Z","gameId":"racing-circuit","gameVersion":"1.0","matchId":"m-err-0001","type":"LAP_COMPLETED","data":{"lap":1,"lapTimeMs":85000,"position":1}}
+{"eventId":"e-000006","timestamp":"2026-10-10T15:01:00Z","gameId":"combat-arena","gameVersion":"1.0","matchId":"m-err-0001","playerId":"p-01","type":"SHOT_HIT","data":{"targetId":"p-02"}}
+esto no es un objeto json valido {{{
+{"eventId":"e-000007","timestamp":"2026-10-10T15:01:00Z","gameId":"combat-arena","gameVersion":"1.0","matchId":"","type":"MATCH_STARTED"}
+{"eventId":"e-000008","timestamp":"2026-99-99 88:88:88","gameId":"combat-arena","gameVersion":"1.0","matchId":"m-err-0002","type":"MATCH_STARTED"}
+{"eventId":"e-000009","timestamp":"2026-10-10T15:01:00Z","gameId":"super-mario-galaxy","gameVersion":"1.0","matchId":"m-err-0002","type":"MATCH_STARTED"}
+{"eventId":"e-000010","timestamp":"2026-10-10T15:01:00Z","gameId":"combat-arena","gameVersion":"1.0","matchId":"m-err-0002","type":"CAST_SPELL_TELEPORT"}
+{"eventId":"e-000011","timestamp":"2026-10-10T15:01:00Z","gameId":"racing-circuit","gameVersion":"1.0","matchId":"m-err-0002","type":"LAP_COMPLETED","data":{"lap":1,"lapTimeMs":85000,"position":1}}
+{"eventId":"e-000012","timestamp":"2026-10-10T15:01:00Z","gameId":"combat-arena","gameVersion":"1.0","matchId":"m-err-0002","playerId":"p-01","type":"SHOT_HIT","data":{"targetId":"p-02"}}
+esto no es un objeto json valido {{{
+{"eventId":"e-000013","timestamp":"2026-10-10T15:01:00Z","gameId":"combat-arena","gameVersion":"1.0","matchId":"","type":"MATCH_STARTED"}
+{"eventId":"e-000014","timestamp":"2026-99-99 88:88:88","gameId":"combat-arena","gameVersion":"1.0","matchId":"m-err-0003","type":"MATCH_STARTED"}
+{"eventId":"e-000015","timestamp":"2026-10-10T15:01:00Z","gameId":"super-mario-galaxy","gameVersion":"1.0","matchId":"m-err-0003","type":"MATCH_STARTED"}
+{"eventId":"e-000016","timestamp":"2026-10-10T15:01:00Z","gameId":"combat-arena","gameVersion":"1.0","matchId":"m-err-0003","type":"CAST_SPELL_TELEPORT"}
+{"eventId":"e-000017","timestamp":"2026-10-10T15:01:00Z","gameId":"racing-circuit","gameVersion":"1.0","matchId":"m-err-0003","type":"LAP_COMPLETED","data":{"lap":1,"lapTimeMs":85000,"position":1}}
+{"eventId":"e-000018","timestamp":"2026-10-10T15:01:00Z","gameId":"combat-arena","gameVersion":"1.0","matchId":"m-err-0003","playerId":"p-01","type":"SHOT_HIT","data":{"targetId":"p-02"}}
+esto no es un objeto json valido {{{
+{"eventId":"e-000019","timestamp":"2026-10-10T15:01:00Z","gameId":"combat-arena","gameVersion":"1.0","matchId":"","type":"MATCH_STARTED"}
+{"eventId":"e-000020","timestamp":"2026-99-99 88:88:88","gameId":"combat-arena","gameVersion":"1.0","matchId":"m-err-0004","type":"MATCH_STARTED"}
+{"eventId":"e-000021","timestamp":"2026-10-10T15:01:00Z","gameId":"super-mario-galaxy","gameVersion":"1.0","matchId":"m-err-0004","type":"MATCH_STARTED"}
+{"eventId":"e-000022","timestamp":"2026-10-10T15:01:00Z","gameId":"combat-arena","gameVersion":"1.0","matchId":"m-err-0004","type":"CAST_SPELL_TELEPORT"}
+{"eventId":"e-000023","timestamp":"2026-10-10T15:01:00Z","gameId":"racing-circuit","gameVersion":"1.0","matchId":"m-err-0004","type":"LAP_COMPLETED","data":{"lap":1,"lapTimeMs":85000,"position":1}}
+{"eventId":"e-000024","timestamp":"2026-10-10T15:01:00Z","gameId":"combat-arena","gameVersion":"1.0","matchId":"m-err-0004","playerId":"p-01","type":"SHOT_HIT","data":{"targetId":"p-02"}}
+esto no es un objeto json valido {{{
+{"eventId":"e-000025","timestamp":"2026-10-10T15:01:00Z","gameId":"combat-arena","gameVersion":"1.0","matchId":"","type":"MATCH_STARTED"}
+{"eventId":"e-000026","timestamp":"2026-99-99 88:88:88","gameId":"combat-arena","gameVersion":"1.0","matchId":"m-err-0005","type":"MATCH_STARTED"}
+{"eventId":"e-000027","timestamp":"2026-10-10T15:01:00Z","gameId":"super-mario-galaxy","gameVersion":"1.0","matchId":"m-err-0005","type":"MATCH_STARTED"}
+{"eventId":"e-000028","timestamp":"2026-10-10T15:01:00Z","gameId":"combat-arena","gameVersion":"1.0","matchId":"m-err-0005","type":"CAST_SPELL_TELEPORT"}
+{"eventId":"e-000029","timestamp":"2026-10-10T15:01:00Z","gameId":"racing-circuit","gameVersion":"1.0","matchId":"m-err-0005","type":"LAP_COMPLETED","data":{"lap":1,"lapTimeMs":85000,"position":1}}
+{"eventId":"e-000030","timestamp":"2026-10-10T15:01:00Z","gameId":"combat-arena","gameVersion":"1.0","matchId":"m-err-0005","playerId":"p-01","type":"SHOT_HIT","data":{"targetId":"p-02"}}
