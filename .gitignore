@@ -1,0 +1,18 @@
+# Go
+*.test
+*.out
+/go-ingestion/bin/
+# Scala / sbt
+target/
+project/target/
+project/project/
+.bsp/
+.idea/
+.metals/
+# Datos generados en ejecucion
+rejected.ndjson
+failed-batches/
+results/
+# Entorno
+.env
+.DS_Store
