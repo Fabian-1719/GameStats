@@ -1,0 +1,54 @@
+name: gamestats
+
+services:
+  scala-analytics:
+    image: gamestats/scala-analytics:local
+    build: ./scala-analytics
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+
+  go-ingestion:
+    image: gamestats/go-ingestion:local
+    build: ./go-ingestion
+    depends_on:
+      scala-analytics:
+        condition: service_healthy
+    environment:
+      PORT: "8080"
+      SCALA_URL: http://scala-analytics:8081
+    ports:
+      - "8080:8080"
+    volumes:
+      - ingestion-data:/app/data
+      - failed-batches:/app/failed-batches
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  simulator:
+    image: gamestats/simulator:local
+    build: ./simulator
+    depends_on:
+      go-ingestion:
+        condition: service_healthy
+    command:
+      - --matches
+      - "2"
+      - --mode
+      - patterns
+      - --target
+      - http://go-ingestion:8080/v1/events
+      - --rate
+      - "100"
+      - --dups
+      - "0"
+      - --shuffle=false
+
+volumes:
+  ingestion-data:
+  failed-batches:
