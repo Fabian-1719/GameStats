@@ -11,11 +11,17 @@ Simulador -> [Go: ingestion] -> lote por partida -> [Scala: analisis] -> resulta
 | Carpeta | Contenido | Estado |
 |---|---|---|
 | `go-ingestion/` | Validacion, entrada, DLQ, router y estado por partida | Dias 1 y 2 listos |
-| `scala-analytics/` | Estadisticas y patrones | Pendiente (Cristofer) |
+| `scala-analytics/` | Analisis funcional, estadisticas, patrones y API HTTP | Implementado |
 | `simulator/` | Generador de eventos | Pendiente (Dia 3) |
 | `docs/` | Especificacion y documentacion | `event-spec.md` listo |
 
 Especificacion de eventos y contrato entre modulos: [docs/event-spec.md](docs/event-spec.md)
+
+Documentacion de los modulos:
+
+- [Modulo Go: ingestion y concurrencia](docs/go-module.md)
+- [Modulo Scala: analisis y patrones](docs/scala-module.md)
+- [Contenedores y CI/CD](docs/docker-ci.md)
 
 ## Ejecutar el modulo Go
 

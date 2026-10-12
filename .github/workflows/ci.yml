@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+          cache-dependency-path: |
+            go-ingestion/go.mod
+            simulator/go.mod
+
+      - name: Test Go ingestion with race detector
+        working-directory: go-ingestion
+        run: go test -race ./...
+
+      - name: Test simulator with race detector
+        working-directory: simulator
+        run: go test -race ./...
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up sbt
+        uses: sbt/setup-sbt@v1
+
+      - name: Test Scala analytics
+        working-directory: scala-analytics
+        run: sbt test
+
+      - name: Build Docker Compose images
+        run: docker compose build
