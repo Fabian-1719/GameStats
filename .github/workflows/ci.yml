@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
@@ -44,3 +48,47 @@ jobs:
 
       - name: Build Docker Compose images
         run: docker compose build
+
+  publish-ghcr:
+    needs: test-and-build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: scala-analytics
+            context: ./scala-analytics
+          - image: go-ingestion
+            context: ./go-ingestion
+          - image: simulator
+            context: ./simulator
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Normalize GHCR image name
+        id: image
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/gamestats-${IMAGE}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push linux/amd64 image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.image.outputs.name }}:latest
+            ${{ steps.image.outputs.name }}:${{ github.sha }}
