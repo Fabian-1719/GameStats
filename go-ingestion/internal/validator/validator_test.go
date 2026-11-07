@@ -101,7 +101,7 @@ func TestLoadCatalogReal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("el catálogo real no carga: %v", err)
 	}
-	for _, game := range []string{CommonKey, "combat-arena", "racing-circuit"} {
+	for _, game := range []string{CommonKey, "combat-arena", "racing-circuit", "connect-four", "snake-arena", "memory-match"} {
 		if len(c[game]) == 0 {
 			t.Errorf("el catálogo no tiene eventos para %q", game)
 		}

@@ -19,5 +19,32 @@
     "POSITION_CHANGED": { "requiresPlayer": true,  "required": ["from", "to"] },
     "PENALTY":          { "requiresPlayer": true,  "required": ["reason", "seconds"] },
     "MATCH_FINISHED":   { "requiresPlayer": false, "required": ["classification"] }
+  },
+  "connect-four": {
+    "MATCH_STARTED":  { "requiresPlayer": false, "required": ["mode", "players"] },
+    "PLAYER_JOINED":  { "requiresPlayer": true,  "required": ["name"] },
+    "PLAYER_LEFT":    { "requiresPlayer": true,  "required": ["reason"] },
+    "MOVE":           { "requiresPlayer": true,  "required": ["column", "row", "turn"] },
+    "AI_DECISION":    { "requiresPlayer": true,  "required": ["column", "level", "nodes", "timeMs", "score"] },
+    "PLAYER_WON":     { "requiresPlayer": true,  "required": ["playerId"] },
+    "PLAYER_LOST":    { "requiresPlayer": true,  "required": ["playerId"] },
+    "MATCH_FINISHED": { "requiresPlayer": false, "required": ["result", "durationMs"] }
+  },
+  "snake-arena": {
+    "MATCH_STARTED":  { "requiresPlayer": false, "required": ["mode", "players"] },
+    "PLAYER_JOINED":  { "requiresPlayer": true,  "required": ["name"] },
+    "PLAYER_LEFT":    { "requiresPlayer": true,  "required": ["reason"] },
+    "FOOD_EATEN":     { "requiresPlayer": true,  "required": ["score", "length"] },
+    "PLAYER_DIED":    { "requiresPlayer": true,  "required": ["cause", "score"] },
+    "MATCH_FINISHED": { "requiresPlayer": false, "required": ["result", "durationMs"] }
+  },
+  "memory-match": {
+    "MATCH_STARTED":  { "requiresPlayer": false, "required": ["mode", "players"] },
+    "PLAYER_JOINED":  { "requiresPlayer": true,  "required": ["name"] },
+    "PLAYER_LEFT":    { "requiresPlayer": true,  "required": ["reason"] },
+    "CARD_FLIPPED":   { "requiresPlayer": true,  "required": ["cardIndex"] },
+    "PAIR_MATCHED":   { "requiresPlayer": true,  "required": ["pairId", "attempts"] },
+    "PAIR_MISSED":    { "requiresPlayer": true,  "required": ["attempts"] },
+    "MATCH_FINISHED": { "requiresPlayer": false, "required": ["result", "durationMs"] }
   }
 }
