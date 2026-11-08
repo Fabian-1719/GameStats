@@ -113,6 +113,38 @@ func TestHTTPBatchMixedReturns207(t *testing.T) {
 	}
 }
 
+func TestGameConsoleGameEventsAreAcceptedByRealCatalog(t *testing.T) {
+	f := newFixture(t)
+	events := `[
+		{"eventId":"e-c4-start","timestamp":"2026-10-10T15:00:00Z","gameId":"connect-four","gameVersion":"1.0","matchId":"m-c4","type":"MATCH_STARTED","action":"START","data":{"mode":"VS_AI","players":["p-c4","cpu-prolog"]}},
+		{"eventId":"e-c4-join","timestamp":"2026-10-10T15:00:00.001Z","gameId":"connect-four","gameVersion":"1.0","matchId":"m-c4","playerId":"p-c4","type":"PLAYER_JOINED","action":"JOIN","data":{"name":"Alice"}},
+		{"eventId":"e-c4-move","timestamp":"2026-10-10T15:00:01Z","gameId":"connect-four","gameVersion":"1.0","matchId":"m-c4","playerId":"p-c4","type":"MOVE","action":"DROP_DISC","data":{"column":3,"row":5,"turn":1}},
+		{"eventId":"e-c4-ai","timestamp":"2026-10-10T15:00:02Z","gameId":"connect-four","gameVersion":"1.0","matchId":"m-c4","playerId":"cpu-prolog","type":"AI_DECISION","action":"DROP_DISC","data":{"column":3,"level":2,"nodes":450,"timeMs":8,"score":0}},
+		{"eventId":"e-c4-won","timestamp":"2026-10-10T15:00:03Z","gameId":"connect-four","gameVersion":"1.0","matchId":"m-c4","playerId":"p-c4","type":"PLAYER_WON","action":"WIN","data":{"playerId":"p-c4"}},
+		{"eventId":"e-c4-finish","timestamp":"2026-10-10T15:00:04Z","gameId":"connect-four","gameVersion":"1.0","matchId":"m-c4","type":"MATCH_FINISHED","action":"FINISH","data":{"winnerId":"p-c4","result":"WIN","durationMs":4000,"moves":1}},
+		{"eventId":"e-snake-start","timestamp":"2026-10-10T15:01:00Z","gameId":"snake-arena","gameVersion":"1.0","matchId":"m-snake","type":"MATCH_STARTED","action":"START","data":{"mode":"SOLO","players":["p-snake"]}},
+		{"eventId":"e-snake-food","timestamp":"2026-10-10T15:01:01Z","gameId":"snake-arena","gameVersion":"1.0","matchId":"m-snake","playerId":"p-snake","type":"FOOD_EATEN","action":"EAT","data":{"score":10,"length":4}},
+		{"eventId":"e-snake-death","timestamp":"2026-10-10T15:01:02Z","gameId":"snake-arena","gameVersion":"1.0","matchId":"m-snake","playerId":"p-snake","type":"PLAYER_DIED","action":"DIE","data":{"cause":"WALL","score":10}},
+		{"eventId":"e-snake-finish","timestamp":"2026-10-10T15:01:03Z","gameId":"snake-arena","gameVersion":"1.0","matchId":"m-snake","type":"MATCH_FINISHED","action":"FINISH","data":{"winnerId":null,"result":"LOSS","durationMs":3000,"score":10,"length":4}},
+		{"eventId":"e-memory-start","timestamp":"2026-10-10T15:02:00Z","gameId":"memory-match","gameVersion":"1.0","matchId":"m-memory","type":"MATCH_STARTED","action":"START","data":{"mode":"SOLO","players":["p-memory"]}},
+		{"eventId":"e-memory-flip","timestamp":"2026-10-10T15:02:01Z","gameId":"memory-match","gameVersion":"1.0","matchId":"m-memory","playerId":"p-memory","type":"CARD_FLIPPED","action":"FLIP","data":{"cardIndex":2}},
+		{"eventId":"e-memory-pair","timestamp":"2026-10-10T15:02:02Z","gameId":"memory-match","gameVersion":"1.0","matchId":"m-memory","playerId":"p-memory","type":"PAIR_MATCHED","action":"MATCH","data":{"pairId":"pair-A","attempts":1}},
+		{"eventId":"e-memory-finish","timestamp":"2026-10-10T15:02:03Z","gameId":"memory-match","gameVersion":"1.0","matchId":"m-memory","type":"MATCH_FINISHED","action":"FINISH","data":{"winnerId":"p-memory","result":"WIN","durationMs":3000,"pairs":1,"attempts":1}}
+	]`
+
+	rec, resp := f.post(events)
+	if rec.Code != http.StatusAccepted || resp.Received != 14 || resp.Accepted != 14 || resp.Rejected != 0 {
+		t.Fatalf("GameConsole events should all pass the real GameStats catalog: status=%d response=%+v body=%s",
+			rec.Code, resp, rec.Body.String())
+	}
+	if stats := f.proc.Stats(); stats.Accepted != 14 || stats.Rejected != 0 {
+		t.Fatalf("unexpected ingestion totals: %+v", stats)
+	}
+	if rejected := f.rejectedLines(t); len(rejected) != 0 {
+		t.Fatalf("valid GameConsole events were written to the rejection log: %+v", rejected)
+	}
+}
+
 func TestHTTPBadBodies(t *testing.T) {
 	f := newFixture(t)
 	for name, body := range map[string]string{

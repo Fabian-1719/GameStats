@@ -13,10 +13,13 @@ simulator --> go-ingestion --> scala-analytics
 
 ## Qué analiza
 
-GameStats incluye dos juegos:
+GameStats incluye cinco juegos:
 
 - **`combat-arena`:** calcula por jugador bajas, muertes, K/D, daño medio por impacto, porcentaje de disparos a la cabeza, disparos, impactos y precisión. Por partida calcula duración, daño total, ranking, MVP y ganador.
 - **`racing-circuit`:** calcula por jugador mejor vuelta, promedio y desviación de tiempos, posiciones ganadas, penalizaciones y segundos de penalización. Por partida calcula clasificación final, vuelta más rápida y adelantamientos.
+- **`connect-four`:** calcula movimientos, resultado, decisiones de la IA, nodos explorados y tiempo promedio de búsqueda.
+- **`snake-arena`:** resume puntuación, longitud final, comida recogida y causa de fin.
+- **`memory-match`:** resume pares encontrados, intentos, cartas volteadas y precisión.
 
 También detecta estos patrones:
 

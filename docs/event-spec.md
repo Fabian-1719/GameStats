@@ -8,6 +8,9 @@
 |---|---|---|
 | `combat-arena` | Combate por eliminación | Muchos eventos por segundo (luce la concurrencia); naturalmente produce estadísticas combinadas (precisión, K/D) y patrones de secuencia (rachas). |
 | `racing-circuit` | Carreras por vueltas | Muy distinto al combate: eventos con tiempos y posiciones; permite consistencia, remontadas y relación entre penalizaciones y tiempos. |
+| `connect-four` | Cuatro en Línea contra IA | Movimientos, resultado y coste de búsqueda de la IA Prolog. |
+| `snake-arena` | Snake individual | Puntuación, longitud, comida recogida y causa de fin. |
+| `memory-match` | Memoria individual | Pares, intentos, cartas volteadas y precisión. |
 
 **Agregar un juego nuevo** (por ejemplo un tercero) requiere: (1) una sección nueva en
 `go-ingestion/config/catalog.json`, (2) un `GameAnalyzer` nuevo en Scala y (3) que el
@@ -71,6 +74,22 @@ tiene prioridad sobre la sección `_common`.
 | `PENALTY` | sí | `reason`, `seconds` |
 | `MATCH_FINISHED` | no | `classification` |
 
+**Juegos de GameConsole**
+
+| gameId | type | Jugador | Campos de `data` |
+|---|---|---|---|
+| `connect-four` | `MOVE` | sí | `column`, `row`, `turn` |
+| `connect-four` | `AI_DECISION` | sí | `column`, `level`, `nodes`, `timeMs`, `score` |
+| `connect-four` | `PLAYER_WON`, `PLAYER_LOST` | sí | `playerId` |
+| `connect-four` | `MATCH_FINISHED` | no | `result`, `durationMs` |
+| `snake-arena` | `FOOD_EATEN` | sí | `score`, `length` |
+| `snake-arena` | `PLAYER_DIED` | sí | `cause`, `score` |
+| `snake-arena` | `MATCH_FINISHED` | no | `result`, `durationMs` |
+| `memory-match` | `CARD_FLIPPED` | sí | `cardIndex` |
+| `memory-match` | `PAIR_MATCHED` | sí | `pairId`, `attempts` |
+| `memory-match` | `PAIR_MISSED` | sí | `attempts` |
+| `memory-match` | `MATCH_FINISHED` | no | `result`, `durationMs` |
+
 ## 4. Estadísticas y patrones (los calcula Scala)
 
 | Tipo | Combate | Carreras |
@@ -79,6 +98,7 @@ tiene prioridad sobre la sección `_common`.
 | Por partida | Duración, MVP, ranking, daño total | Clasificación final, vuelta más rápida, adelantamientos |
 | Combinada (varios tipos de evento) | Precisión = `SHOT_HIT` / `SHOT_FIRED` | Consistencia (desviación estándar de vueltas) ligada a penalizaciones |
 | Patrón de secuencia | **Racha:** 3 o más eliminaciones en menos de 10 s sin morir. **Abandono sospechoso:** desconexión sin reconexión en 60 s mientras iba perdiendo | **Remontada:** posición baja a mitad de carrera y victoria final |
+| GameConsole | Movimientos, nodos y tiempo promedio de IA | Puntuación, longitud y comidas | Pares, intentos y precisión |
 
 ## 5. Validación en Go (Día 1)
 
