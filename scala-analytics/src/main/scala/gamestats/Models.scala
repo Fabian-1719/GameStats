@@ -65,6 +65,51 @@ final case class RacingPlayerStats(
     "penaltySeconds" -> Num(penaltySeconds)
   )
 
+final case class ConnectFourPlayerStats(
+    playerId: String,
+    moves: Int,
+    aiDecisions: Int,
+    totalNodes: Long,
+    avgAiTimeMs: Option[Double]
+) extends PlayerStats:
+  def toJson: Obj = Obj(
+    "playerId" -> Str(playerId),
+    "moves" -> Num(moves),
+    "aiDecisions" -> Num(aiDecisions),
+    "totalNodes" -> Num(totalNodes),
+    "avgAiTimeMs" -> avgAiTimeMs.map(Num(_)).getOrElse(Null)
+  )
+
+final case class SnakePlayerStats(
+    playerId: String,
+    score: Int,
+    length: Int,
+    foodEaten: Int,
+    deathCause: Option[String]
+) extends PlayerStats:
+  def toJson: Obj = Obj(
+    "playerId" -> Str(playerId),
+    "score" -> Num(score),
+    "length" -> Num(length),
+    "foodEaten" -> Num(foodEaten),
+    "deathCause" -> deathCause.map(Str(_)).getOrElse(Null)
+  )
+
+final case class MemoryPlayerStats(
+    playerId: String,
+    pairs: Int,
+    attempts: Int,
+    flips: Int,
+    accuracy: Double
+) extends PlayerStats:
+  def toJson: Obj = Obj(
+    "playerId" -> Str(playerId),
+    "pairs" -> Num(pairs),
+    "attempts" -> Num(attempts),
+    "flips" -> Num(flips),
+    "accuracy" -> Num(accuracy)
+  )
+
 sealed trait MatchStats:
   def fields: Seq[(String, Value)]
 
@@ -98,6 +143,59 @@ final case class RacingMatchStats(
     "classification" -> classification.getOrElse(Null),
     "fastestLap" -> fastestLap.map(lap => lap.toJson: Value).getOrElse(Null),
     "overtakes" -> Num(overtakes)
+  )
+
+final case class ConnectFourMatchStats(
+    durationMs: Option[Long],
+    moves: Int,
+    result: Option[String],
+    winnerId: Option[String],
+    aiDecisions: Int,
+    totalNodes: Long,
+    avgAiTimeMs: Option[Double]
+) extends MatchStats:
+  def fields: Seq[(String, Value)] = Seq(
+    "durationMs" -> durationMs.map(Num(_)).getOrElse(Null),
+    "moves" -> Num(moves),
+    "result" -> result.map(Str(_)).getOrElse(Null),
+    "winnerId" -> winnerId.map(Str(_)).getOrElse(Null),
+    "aiDecisions" -> Num(aiDecisions),
+    "totalNodes" -> Num(totalNodes),
+    "avgAiTimeMs" -> avgAiTimeMs.map(Num(_)).getOrElse(Null)
+  )
+
+final case class SnakeMatchStats(
+    durationMs: Option[Long],
+    result: Option[String],
+    score: Int,
+    length: Int,
+    foodEaten: Int,
+    deathCause: Option[String]
+) extends MatchStats:
+  def fields: Seq[(String, Value)] = Seq(
+    "durationMs" -> durationMs.map(Num(_)).getOrElse(Null),
+    "result" -> result.map(Str(_)).getOrElse(Null),
+    "score" -> Num(score),
+    "length" -> Num(length),
+    "foodEaten" -> Num(foodEaten),
+    "deathCause" -> deathCause.map(Str(_)).getOrElse(Null)
+  )
+
+final case class MemoryMatchStats(
+    durationMs: Option[Long],
+    result: Option[String],
+    pairs: Int,
+    attempts: Int,
+    flips: Int,
+    accuracy: Double
+) extends MatchStats:
+  def fields: Seq[(String, Value)] = Seq(
+    "durationMs" -> durationMs.map(Num(_)).getOrElse(Null),
+    "result" -> result.map(Str(_)).getOrElse(Null),
+    "pairs" -> Num(pairs),
+    "attempts" -> Num(attempts),
+    "flips" -> Num(flips),
+    "accuracy" -> Num(accuracy)
   )
 
 final case class MatchAnalysis(

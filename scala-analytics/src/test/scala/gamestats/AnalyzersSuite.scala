@@ -70,6 +70,46 @@ class AnalyzersSuite extends munit.FunSuite:
     assertEquals(p2.positionsGained, 2)
   }
 
+  test("GameConsole analyzers calculate results for Connect Four, Snake and Memory") {
+    val connectFour = Batch("m-c4", "connect-four", "COMPLETE", List(
+      event("start-c4", "MATCH_STARTED", None, Obj("players" -> Arr(Str("p1"), Str("cpu-prolog")))),
+      event("move-human", "MOVE", Some("p1")),
+      event("decision", "AI_DECISION", Some("cpu-prolog"), Obj("nodes" -> Num(450), "timeMs" -> Num(8))),
+      event("move-cpu", "MOVE", Some("cpu-prolog")),
+      event("finish-c4", "MATCH_FINISHED", None,
+        Obj("winnerId" -> Str("cpu-prolog"), "result" -> Str("LOSS"), "durationMs" -> Num(12000), "moves" -> Num(2)))
+    ))
+    val snake = Batch("m-snake", "snake-arena", "COMPLETE", List(
+      event("start-snake", "MATCH_STARTED", None, Obj("players" -> Arr(Str("p2")))),
+      event("food", "FOOD_EATEN", Some("p2"), Obj("score" -> Num(10), "length" -> Num(4))),
+      event("death", "PLAYER_DIED", Some("p2"), Obj("cause" -> Str("WALL"), "score" -> Num(10))),
+      event("finish-snake", "MATCH_FINISHED", None,
+        Obj("winnerId" -> Null, "result" -> Str("LOSS"), "durationMs" -> Num(12000), "score" -> Num(10), "length" -> Num(4)))
+    ))
+    val memory = Batch("m-memory", "memory-match", "COMPLETE", List(
+      event("start-memory", "MATCH_STARTED", None, Obj("players" -> Arr(Str("p3")))),
+      event("flip1", "CARD_FLIPPED", Some("p3"), Obj("cardIndex" -> Num(0))),
+      event("flip2", "CARD_FLIPPED", Some("p3"), Obj("cardIndex" -> Num(1))),
+      event("pair", "PAIR_MATCHED", Some("p3"), Obj("pairId" -> Str("pair-1"), "attempts" -> Num(1))),
+      event("finish-memory", "MATCH_FINISHED", None,
+        Obj("winnerId" -> Str("p3"), "result" -> Str("WIN"), "durationMs" -> Num(25000), "pairs" -> Num(1), "attempts" -> Num(1)))
+    ))
+
+    val c4Result = GameAnalyzers.registry("connect-four").analyze(connectFour)
+    val snakeResult = GameAnalyzers.registry("snake-arena").analyze(snake)
+    val memoryResult = GameAnalyzers.registry("memory-match").analyze(memory)
+
+    assertEquals(c4Result.stats.asInstanceOf[ConnectFourMatchStats].moves, 2)
+    assertEquals(c4Result.stats.asInstanceOf[ConnectFourMatchStats].totalNodes, 450L)
+    assertEquals(c4Result.players.find(_.playerId == "p1").get.asInstanceOf[ConnectFourPlayerStats].moves, 1)
+    assertEquals(snakeResult.stats.asInstanceOf[SnakeMatchStats].score, 10)
+    assertEquals(snakeResult.stats.asInstanceOf[SnakeMatchStats].deathCause, Some("WALL"))
+    assertEquals(snakeResult.players.head.asInstanceOf[SnakePlayerStats].foodEaten, 1)
+    assertEquals(memoryResult.stats.asInstanceOf[MemoryMatchStats].pairs, 1)
+    assertEquals(memoryResult.stats.asInstanceOf[MemoryMatchStats].accuracy, 1.0)
+    assertEquals(memoryResult.players.head.asInstanceOf[MemoryPlayerStats].flips, 2)
+  }
+
   test("incomplete batches retain statistics but omit winner and classification") {
     val combat = Batch("m-3", "combat-arena", "TIMEOUT", List(
       event("kill", "PLAYER_ELIMINATED", Some("p1"), Obj("targetId" -> Str("p2"), "weapon" -> Str("rifle"))),
@@ -88,6 +128,22 @@ class AnalyzersSuite extends munit.FunSuite:
     assert(!raceResult.complete)
     assertEquals(raceResult.stats.asInstanceOf[RacingMatchStats].classification, None)
     assertEquals(raceResult.players.head.asInstanceOf[RacingPlayerStats].bestLapMs, Some(70000L))
+  }
+
+  test("analysis service stores GameConsole match results and player aggregates") {
+    val service = new AnalysisService()
+    val batch = Batch("m-memory-player", "memory-match", "COMPLETE", List(
+      event("start", "MATCH_STARTED", None, Obj("players" -> Arr(Str("p-memory")))),
+      event("flip", "CARD_FLIPPED", Some("p-memory"), Obj("cardIndex" -> Num(0))),
+      event("pair", "PAIR_MATCHED", Some("p-memory"), Obj("pairId" -> Str("pair-1"), "attempts" -> Num(1))),
+      event("finish", "MATCH_FINISHED", None,
+        Obj("winnerId" -> Str("p-memory"), "result" -> Str("WIN"), "durationMs" -> Num(1000), "pairs" -> Num(1), "attempts" -> Num(1)))
+    ))
+
+    assert(service.analyze(batch).nonEmpty)
+    assertEquals(service.getMatches("m-memory-player").head.gameId, "memory-match")
+    assertEquals(service.getPlayerStats("p-memory").get("games")("memory-match")("wins").num, 1.0)
+    assertEquals(service.leaderboard("memory-match").head("playerId").str, "p-memory")
   }
 
   test("service replaces a match and rejects unknown games") {
