@@ -3,7 +3,7 @@ package gamestats
 import scala.collection.concurrent.TrieMap
 import ujson.*
 
-private final case class StoredMatch(analysis: MatchAnalysis, patterns: List[DetectedPattern])
+private final case class StoredMatch(analysis: MatchAnalysis, patterns: List[DetectedPattern], eventCount: Int = 0)
 
 final class AnalysisService(
     analyzers: Map[String, GameAnalyzer] = GameAnalyzers.registry
@@ -13,9 +13,116 @@ final class AnalysisService(
   def analyze(batch: Batch): Option[MatchAnalysis] =
     analyzers.get(batch.gameId).map { analyzer =>
       val result = analyzer.analyze(batch)
-      store.update((batch.gameId, batch.matchId), StoredMatch(result, PatternDetectors.detect(batch)))
+      store.update(
+        (batch.gameId, batch.matchId),
+        StoredMatch(result, PatternDetectors.detect(batch), batch.events.size)
+      )
       result
     }
+
+  def knowsGame(gameId: String): Boolean = analyzers.contains(gameId)
+
+  /** GET /v1/stats/general: resumen de todo lo analizado, sin importar el juego. */
+  def generalStats(): Obj =
+    val matches = store.valuesIterator.toList
+    val byGame = matches.groupBy(_.analysis.gameId).view.mapValues(_.size).toMap
+    val players = matches.flatMap(_.analysis.players.map(_.playerId)).distinct
+    Obj(
+      "totalMatches" -> Num(matches.size),
+      "completedMatches" -> Num(matches.count(_.analysis.complete)),
+      "abandonedMatches" -> Num(matches.count(stored => resultOf(stored.analysis).contains("ABANDONED"))),
+      // Todos los juegos conocidos aparecen, aunque tengan 0 partidas, para que el panel no "salte"
+      "matchesByGame" -> Obj.from(analyzers.keys.toList.sorted.map(id => id -> Num(byGame.getOrElse(id, 0)))),
+      "players" -> Num(players.size),
+      "events" -> Num(matches.map(_.eventCount).sum)
+    )
+
+  /** GET /v1/games/{gameId}/stats: instancias ejecutadas, victorias, duración y métricas propias del juego. */
+  def gameStats(gameId: String): Option[Obj] =
+    Option.when(knowsGame(gameId)) {
+      val matches = store.valuesIterator.toList.filter(_.analysis.gameId == gameId)
+      val results = matches.flatMap(stored => resultOf(stored.analysis))
+      val durations = matches.flatMap(stored => durationOf(stored.analysis))
+      val common = Seq(
+        "gameId" -> Str(gameId),
+        "instances" -> Num(matches.size),
+        "completed" -> Num(matches.count(_.analysis.complete)),
+        "wins" -> Num(results.count(_ == "WIN")),
+        "losses" -> Num(results.count(_ == "LOSS")),
+        "draws" -> Num(results.count(_ == "DRAW")),
+        "abandoned" -> Num(results.count(_ == "ABANDONED")),
+        "avgDurationMs" -> average(durations.map(_.toDouble)),
+        "players" -> Num(matches.flatMap(_.analysis.players.map(_.playerId)).distinct.size),
+        "patterns" -> Obj.from(
+          matches.flatMap(_.patterns).groupBy(_.patternType).toList.sortBy(_._1).map { case (kind, found) =>
+            kind -> Num(found.size)
+          }
+        )
+      )
+      Obj.from(common ++ Seq("metrics" -> gameMetrics(gameId, matches)))
+    }
+
+  private def gameMetrics(gameId: String, matches: List[StoredMatch]): Obj = gameId match
+    case "connect-four" =>
+      val stats = matches.collect { case StoredMatch(MatchAnalysis(_, _, _, _, _, s: ConnectFourMatchStats), _, _) => s }
+      // Nivel de la IA contra resultado. El resultado viene desde el punto de vista del humano:
+      // WIN = ganó el humano, LOSS = ganó la IA.
+      val byLevel = stats.filter(_.aiLevel.nonEmpty).groupBy(_.aiLevel.get).toList.sortBy(_._1).map { case (level, group) =>
+        Obj(
+          "level" -> Num(level),
+          "matches" -> Num(group.size),
+          "humanWins" -> Num(group.count(_.result.contains("WIN"))),
+          "aiWins" -> Num(group.count(_.result.contains("LOSS"))),
+          "draws" -> Num(group.count(_.result.contains("DRAW"))),
+          "avgAiTimeMs" -> weightedAiTime(group)
+        )
+      }
+      Obj(
+        "avgMoves" -> average(stats.map(_.moves.toDouble)),
+        "avgAiTimeMs" -> weightedAiTime(stats),
+        "totalNodes" -> Num(stats.map(_.totalNodes).sum),
+        "byLevel" -> Arr.from(byLevel)
+      )
+    case "snake-arena" =>
+      val stats = matches.collect { case StoredMatch(MatchAnalysis(_, _, _, _, _, s: SnakeMatchStats), _, _) => s }
+      Obj(
+        "bestScore" -> Num(stats.map(_.score).maxOption.getOrElse(0)),
+        "avgScore" -> average(stats.map(_.score.toDouble)),
+        "avgLength" -> average(stats.map(_.length.toDouble)),
+        "totalFoodEaten" -> Num(stats.map(_.foodEaten).sum),
+        "avgFoodPerMinute" -> average(stats.flatMap(_.foodPerMinute))
+      )
+    case "memory-match" =>
+      val stats = matches.collect { case StoredMatch(MatchAnalysis(_, _, _, _, _, s: MemoryMatchStats), _, _) => s }
+      val won = stats.filter(_.result.contains("WIN"))
+      Obj(
+        "avgAccuracy" -> average(stats.map(_.accuracy)),
+        "avgAttempts" -> average(stats.map(_.attempts.toDouble)),
+        "bestAttempts" -> won.map(_.attempts).minOption.map(Num(_)).getOrElse(Null),
+        "totalPairs" -> Num(stats.map(_.pairs).sum)
+      )
+    case _ => Obj()
+
+  private def weightedAiTime(stats: List[ConnectFourMatchStats]): Value =
+    val decisions = stats.map(_.aiDecisions).sum
+    val totalTime = stats.flatMap(s => s.avgAiTimeMs.map(_ * s.aiDecisions)).sum
+    if decisions == 0 then Null else Num(totalTime / decisions)
+
+  private def average(values: List[Double]): Value =
+    if values.isEmpty then Null else Num(values.sum / values.size)
+
+  private def resultOf(analysis: MatchAnalysis): Option[String] = analysis.stats match
+    case s: ConnectFourMatchStats => s.result
+    case s: SnakeMatchStats => s.result
+    case s: MemoryMatchStats => s.result
+    case _ => None
+
+  private def durationOf(analysis: MatchAnalysis): Option[Long] = analysis.stats match
+    case s: ConnectFourMatchStats => s.durationMs
+    case s: SnakeMatchStats => s.durationMs
+    case s: MemoryMatchStats => s.durationMs
+    case s: CombatMatchStats => s.durationMs
+    case _ => None
 
   def getMatches(matchId: String, gameId: Option[String] = None): List[MatchAnalysis] =
     store.iterator.collect {
@@ -127,22 +234,17 @@ final class AnalysisService(
       )
     case "connect-four" =>
       val players = entries.collect { case (_, stats: ConnectFourPlayerStats) => stats }
-      val wins = entries.count { case (stored, stats) =>
-        stored.analysis.complete && (stored.analysis.stats match
-          case ConnectFourMatchStats(_, _, _, Some(winnerId), _, _, _) => winnerId == stats.playerId
-          case _ => false)
-      }
-      val losses = entries.count { case (stored, stats) =>
+      val c4 = entries.collect { case (stored, stats) =>
         stored.analysis.stats match
-          case ConnectFourMatchStats(_, _, Some("LOSS"), winnerId, _, _, _) =>
-            winnerId.forall(_ != stats.playerId)
-          case _ => false
+          case match4: ConnectFourMatchStats => Some((stored, stats, match4))
+          case _ => None
+      }.flatten
+      val wins = c4.count { case (stored, stats, m) => stored.analysis.complete && m.winnerId.contains(stats.playerId) }
+      val losses = c4.count { case (stored, stats, m) =>
+        stored.analysis.complete && m.result.exists(r => r == "WIN" || r == "LOSS") &&
+          m.winnerId.exists(_ != stats.playerId)
       }
-      val draws = entries.count { case (stored, _) =>
-        stored.analysis.stats match
-          case ConnectFourMatchStats(_, _, Some("DRAW"), _, _, _, _) => true
-          case _ => false
-      }
+      val draws = c4.count { case (_, _, m) => m.result.contains("DRAW") }
       val decisions = players.map(_.aiDecisions).sum
       val totalTime = players.flatMap(stats =>
         stats.avgAiTimeMs.map(_ * stats.aiDecisions)
@@ -152,6 +254,8 @@ final class AnalysisService(
         "wins" -> Num(wins),
         "losses" -> Num(losses),
         "draws" -> Num(draws),
+        // % de victorias = victorias / partidas jugadas
+        "winRate" -> Num(if players.isEmpty then 0.0 else wins.toDouble / players.size),
         "moves" -> Num(players.map(_.moves).sum),
         "aiDecisions" -> Num(decisions),
         "avgAiTimeMs" -> (if decisions == 0 then Null else Num(totalTime / decisions)),
@@ -160,31 +264,38 @@ final class AnalysisService(
     case "snake-arena" =>
       val players = entries.collect { case (_, stats: SnakePlayerStats) => stats }
       val scores = players.map(_.score)
+      val snakeMatches = entries.collect { case (stored, _) =>
+        stored.analysis.stats match
+          case s: SnakeMatchStats => Some(stored -> s)
+          case _ => None
+      }.flatten
+      val rates = snakeMatches.flatMap(_._2.foodPerMinute)
       Obj(
         "matches" -> Num(players.size),
-        "wins" -> Num(entries.count { case (stored, _) =>
-          stored.analysis.complete && (stored.analysis.stats match
-            case SnakeMatchStats(_, Some("WIN"), _, _, _, _) => true
-            case _ => false)
-        }),
+        "wins" -> Num(snakeMatches.count { case (stored, s) => stored.analysis.complete && s.result.contains("WIN") }),
         "bestScore" -> Num(scores.maxOption.getOrElse(0)),
         "avgScore" -> Num(if scores.isEmpty then 0 else scores.sum.toDouble / scores.size),
         "longestLength" -> Num(players.map(_.length).maxOption.getOrElse(0)),
-        "foodEaten" -> Num(players.map(_.foodEaten).sum)
+        "foodEaten" -> Num(players.map(_.foodEaten).sum),
+        "avgFoodPerMinute" -> (if rates.isEmpty then Null else Num(rates.sum / rates.size))
       )
     case "memory-match" =>
       val players = entries.collect { case (_, stats: MemoryPlayerStats) => stats }
       val attempts = players.map(_.attempts).sum
       val pairs = players.map(_.pairs).sum
+      val memoryMatches = entries.collect { case (stored, stats: MemoryPlayerStats) =>
+        stored.analysis.stats match
+          case m: MemoryMatchStats => Some((stored, stats, m))
+          case _ => None
+      }.flatten
+      val wonMatches = memoryMatches.filter { case (stored, _, m) => stored.analysis.complete && m.result.contains("WIN") }
       Obj(
         "matches" -> Num(players.size),
-        "wins" -> Num(entries.count { case (stored, _) =>
-          stored.analysis.complete && (stored.analysis.stats match
-            case MemoryMatchStats(_, Some("WIN"), _, _, _, _) => true
-            case _ => false)
-        }),
+        "wins" -> Num(wonMatches.size),
         "pairs" -> Num(pairs),
         "attempts" -> Num(attempts),
+        // Mejor número de intentos = el menor entre las partidas ganadas
+        "bestAttempts" -> wonMatches.map(_._2.attempts).minOption.map(Num(_)).getOrElse(Null),
         "flips" -> Num(players.map(_.flips).sum),
         "accuracy" -> Num(if attempts == 0 then 0.0 else pairs.toDouble / attempts)
       )
