@@ -45,6 +45,15 @@ object Main extends cask.MainRoutes:
       case Some(stats) => jsonResponse(200, stats)
       case None => jsonResponse(404, Obj("error" -> Str("player not found")))
 
+  @cask.get("/v1/stats/general")
+  def generalStats(): cask.Response[String] = jsonResponse(200, service.generalStats())
+
+  @cask.get("/v1/games/:gameId/stats")
+  def gameStats(gameId: String): cask.Response[String] =
+    service.gameStats(gameId) match
+      case Some(stats) => jsonResponse(200, stats)
+      case None => jsonResponse(404, Obj("error" -> Str(s"unknown gameId: $gameId")))
+
   @cask.get("/v1/games/:gameId/leaderboard")
   def leaderboard(gameId: String): cask.Response[String] =
     jsonResponse(200, Arr.from(service.leaderboard(gameId)))
