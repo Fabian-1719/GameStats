@@ -28,7 +28,69 @@ object PatternDetectors:
   def detect(batch: Batch): List[DetectedPattern] = batch.gameId match
     case "combat-arena" => killStreaks(batch) ++ suspiciousAbandons(batch)
     case "racing-circuit" => comebacks(batch)
+    case "connect-four" => lightningWins(batch)
+    case "snake-arena" => foodStreaks(batch)
+    case "memory-match" => perfectMemory(batch)
     case _ => Nil
+
+  private val lightningMaxMoves = 10
+  private val foodStreakCount = 5
+  private val foodStreakWindowMs = 15_000L
+
+  /** Victoria relámpago: el ganador de Cuatro en Línea necesitó 10 jugadas propias o menos. */
+  def lightningWins(batch: Batch): List[DetectedPattern] =
+    if batch.status != "COMPLETE" then Nil
+    else
+      val winner = batch.events.find(_.eventType == "MATCH_FINISHED").flatMap(event => string(event.data, "winnerId"))
+      winner.toList.flatMap { winnerId =>
+        val winnerMoves = batch.events.count(event => event.eventType == "MOVE" && event.playerId.contains(winnerId))
+        Option.when(winnerMoves > 0 && winnerMoves <= lightningMaxMoves)(
+          DetectedPattern("LIGHTNING_WIN", batch.gameId, batch.matchId, winnerId, Obj("moves" -> Num(winnerMoves)))
+        )
+      }
+
+  /** Racha: 5 FOOD_EATEN del mismo jugador en menos de 15 s. Se reporta una vez, con la mejor ventana. */
+  def foodStreaks(batch: Batch): List[DetectedPattern] =
+    val food = batch.events.filter(_.eventType == "FOOD_EATEN")
+    food.flatMap(_.playerId).distinct.sorted.flatMap { playerId =>
+      val timed = food.filter(_.playerId.contains(playerId))
+        .flatMap(event => instant(event).map(event -> _))
+        .sortBy(_._2)
+      // Para cada comida, cuántas comidas siguientes caben en menos de 15 s (ventana deslizante)
+      val windows = timed.indices.map { start =>
+        val inside = timed.drop(start).takeWhile { case (_, time) =>
+          Duration.between(timed(start)._2, time).toMillis < foodStreakWindowMs
+        }
+        inside
+      }
+      windows.filter(_.size >= foodStreakCount).maxByOption(_.size).map { best =>
+        DetectedPattern(
+          "FOOD_STREAK",
+          batch.gameId,
+          batch.matchId,
+          playerId,
+          Obj(
+            "count" -> Num(best.size),
+            "start" -> Str(best.head._1.timestamp),
+            "end" -> Str(best.last._1.timestamp)
+          )
+        )
+      }
+    }
+
+  /** Memoria perfecta: la partida terminó con victoria y sin ningún PAIR_MISSED. */
+  def perfectMemory(batch: Batch): List[DetectedPattern] =
+    val finished = batch.events.find(_.eventType == "MATCH_FINISHED")
+    val won = finished.exists(event => string(event.data, "result").contains("WIN"))
+    val pairs = batch.events.count(_.eventType == "PAIR_MATCHED")
+    val missed = batch.events.exists(_.eventType == "PAIR_MISSED")
+    if batch.status != "COMPLETE" || !won || missed || pairs == 0 then Nil
+    else
+      val playerId = finished.flatMap(event => string(event.data, "winnerId"))
+        .orElse(batch.events.find(_.eventType == "PAIR_MATCHED").flatMap(_.playerId))
+      playerId.toList.map(id =>
+        DetectedPattern("PERFECT_MEMORY", batch.gameId, batch.matchId, id, Obj("pairs" -> Num(pairs)))
+      )
 
   def killStreaks(batch: Batch): List[DetectedPattern] =
     val eliminations = batch.events.filter(_.eventType == "PLAYER_ELIMINATED")

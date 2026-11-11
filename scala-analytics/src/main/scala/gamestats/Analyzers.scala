@@ -30,6 +30,13 @@ object AnalyzerSupport:
       end <- endpoint
     yield math.max(0L, end.toEpochMilli - start.toEpochMilli)
 
+  /** Duración por timestamps; si no se puede calcular, usa el durationMs que mandó la consola. */
+  def matchDurationMs(batch: Batch, finishData: Value): Option[Long] =
+    durationMs(batch).filter(_ > 0).orElse(long(finishData, "durationMs"))
+
+  def precision(matched: Int, missed: Int): Double =
+    if matched + missed == 0 then 0.0 else matched.toDouble / (matched + missed)
+
   private def timestamp(event: Event): Option[Instant] = Try(Instant.parse(event.timestamp)).toOption
 
 final class CombatArenaAnalyzer extends GameAnalyzer:
@@ -175,7 +182,8 @@ final class ConnectFourAnalyzer extends GameAnalyzer:
         totalNodes = decisions.flatMap(event => long(event.data, "nodes")).sum,
         avgAiTimeMs = decisionTimes match
           case Nil => None
-          case times => Some(times.sum.toDouble / times.size)
+          case times => Some(times.sum.toDouble / times.size),
+        aiLevel = decisions.flatMap(event => int(event.data, "level")).lastOption
       )
     )
 
@@ -204,6 +212,7 @@ final class SnakeArenaAnalyzer extends GameAnalyzer:
     val complete = batch.status == "COMPLETE"
     val fallbackScore = foodEvents.flatMap(event => int(event.data, "score")).lastOption.getOrElse(0)
     val fallbackLength = foodEvents.flatMap(event => int(event.data, "length")).lastOption.getOrElse(0)
+    val duration = matchDurationMs(batch, finishData)
     MatchAnalysis(
       matchId = batch.matchId,
       gameId = batch.gameId,
@@ -211,12 +220,14 @@ final class SnakeArenaAnalyzer extends GameAnalyzer:
       complete = complete,
       players = players,
       stats = SnakeMatchStats(
-        durationMs = durationMs(batch),
+        durationMs = duration,
         result = if complete then string(finishData, "result") else None,
         score = int(finishData, "score").getOrElse(fallbackScore),
         length = int(finishData, "length").getOrElse(fallbackLength),
         foodEaten = foodEvents.size,
-        deathCause = deaths.lastOption.flatMap(event => string(event.data, "cause"))
+        deathCause = deaths.lastOption.flatMap(event => string(event.data, "cause")),
+        // Comidas por minuto = FOOD_EATEN / (duración en minutos)
+        foodPerMinute = duration.filter(_ > 0).map(ms => foodEvents.size * 60_000.0 / ms)
       )
     )
 
@@ -234,7 +245,8 @@ final class MemoryMatchAnalyzer extends GameAnalyzer:
     val attempts = (matches ++ misses).flatMap(event => int(event.data, "attempts")).maxOption
       .getOrElse(matches.size + misses.size)
     val pairs = matches.size
-    val accuracy = if attempts == 0 then 0.0 else pairs.toDouble / attempts
+    // Precisión = PAIR_MATCHED / (PAIR_MATCHED + PAIR_MISSED)
+    val accuracy = precision(matches.size, misses.size)
     val players = playerIds.map { playerId =>
       val playerMatches = matches.filter(_.playerId.contains(playerId))
       val playerMisses = misses.filter(_.playerId.contains(playerId))
@@ -246,7 +258,7 @@ final class MemoryMatchAnalyzer extends GameAnalyzer:
         pairs = playerPairs,
         attempts = playerAttempts,
         flips = flips.count(_.playerId.contains(playerId)),
-        accuracy = if playerAttempts == 0 then 0.0 else playerPairs.toDouble / playerAttempts
+        accuracy = precision(playerMatches.size, playerMisses.size)
       )
     }
     val finished = batch.events.find(_.eventType == "MATCH_FINISHED")

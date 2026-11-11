@@ -152,7 +152,8 @@ final case class ConnectFourMatchStats(
     winnerId: Option[String],
     aiDecisions: Int,
     totalNodes: Long,
-    avgAiTimeMs: Option[Double]
+    avgAiTimeMs: Option[Double],
+    aiLevel: Option[Int] = None
 ) extends MatchStats:
   def fields: Seq[(String, Value)] = Seq(
     "durationMs" -> durationMs.map(Num(_)).getOrElse(Null),
@@ -161,7 +162,8 @@ final case class ConnectFourMatchStats(
     "winnerId" -> winnerId.map(Str(_)).getOrElse(Null),
     "aiDecisions" -> Num(aiDecisions),
     "totalNodes" -> Num(totalNodes),
-    "avgAiTimeMs" -> avgAiTimeMs.map(Num(_)).getOrElse(Null)
+    "avgAiTimeMs" -> avgAiTimeMs.map(Num(_)).getOrElse(Null),
+    "aiLevel" -> aiLevel.map(Num(_)).getOrElse(Null)
   )
 
 final case class SnakeMatchStats(
@@ -170,7 +172,8 @@ final case class SnakeMatchStats(
     score: Int,
     length: Int,
     foodEaten: Int,
-    deathCause: Option[String]
+    deathCause: Option[String],
+    foodPerMinute: Option[Double] = None
 ) extends MatchStats:
   def fields: Seq[(String, Value)] = Seq(
     "durationMs" -> durationMs.map(Num(_)).getOrElse(Null),
@@ -178,7 +181,8 @@ final case class SnakeMatchStats(
     "score" -> Num(score),
     "length" -> Num(length),
     "foodEaten" -> Num(foodEaten),
-    "deathCause" -> deathCause.map(Str(_)).getOrElse(Null)
+    "deathCause" -> deathCause.map(Str(_)).getOrElse(Null),
+    "foodPerMinute" -> foodPerMinute.map(Num(_)).getOrElse(Null)
   )
 
 final case class MemoryMatchStats(
